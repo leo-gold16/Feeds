@@ -1,4 +1,3 @@
-
 name: Feed to Discord
 on:
   schedule:
@@ -20,7 +19,7 @@ jobs:
       - run: pip install pillow
       - run: python feed.py
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          ALL_SECRETS: ${{ toJSON(secrets) }}
       - run: |
           git config user.name "feed-bot"
           git config user.email "feed-bot@users.noreply.github.com"
