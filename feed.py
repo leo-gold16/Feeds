@@ -3,8 +3,12 @@ import xml.etree.ElementTree as ET
 
 # ===== EDIT HERE: "Name": ("feed URL", webhook number) =====
 FEEDS = {
-    "r/python": ("https://www.reddit.com/r/python/.rss", 1),
-    "Hacker News": ("https://hnrss.org/frontpage", 2),
+    "r/AnikageCommunity": ("https://www.reddit.com/r/AnikageCommunity/.rss", 1),
+    "Anime News Network": ("https://www.animenewsnetwork.com/all/rss.xml?ann-edition=us", 2),
+    "Otaku Down": ("https://otakudown.com/feed/", 3),
+    "Otaku USA Magazine": ("https://otakuusamagazine.com/anime/feed/", 2),
+    "Anime Daily": ("https://www.theanimedaily.com/feed/", 2),
+    "Anime Herald": ("https://animeherald.com/feed/", 2),
 }
 # ===========================================================
 
@@ -12,6 +16,7 @@ SEEN_FILE = "seen.json"
 UA = "Mozilla/5.0 (compatible; feed-bot/1.0)"
 PURPLE = 0x9B59B6
 MAX_PER_FEED = 10  # per run, avoids floods
+FOOTER = "Anikage Community"
 
 
 def load_webhooks():
@@ -130,7 +135,7 @@ def post(title, link, summary, image, source, webhook):
         "url": link,
         "description": desc[:4000],
         "color": dominant_color(image) if image else PURPLE,
-        "footer": {"text": source},
+        "footer": {"text": FOOTER},
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     if image:
