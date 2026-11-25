@@ -1,15 +1,37 @@
 import colorsys, html, io, json, os, re, time, urllib.request, urllib.error
 import xml.etree.ElementTree as ET
 
+# ===== EDIT HERE: "Name": ("feed URL", webhook number) =====
 FEEDS = {
-    "r/python": "https://www.reddit.com/r/python/.rss",
-    "Hacker News": "https://hnrss.org/frontpage",
+    "r/python": ("https://www.reddit.com/r/python/.rss", 1),
+    "Hacker News": ("https://hnrss.org/frontpage", 2),
 }
-WEBHOOK = os.environ["DISCORD_WEBHOOK"]
+# ===========================================================
+
 SEEN_FILE = "seen.json"
 UA = "Mozilla/5.0 (compatible; feed-bot/1.0)"
 PURPLE = 0x9B59B6
 MAX_PER_FEED = 10  # per run, avoids floods
+
+
+def load_webhooks():
+    hooks = {}
+    try:
+        secrets = json.loads(os.environ.get("ALL_SECRETS", "{}"))
+    except Exception:
+        secrets = {}
+    for key, val in secrets.items():
+        m = re.fullmatch(r"DISCORD_WEBHOOK_(\d+)", key.upper())
+        if m and val:
+            hooks[int(m.group(1))] = val
+    old = secrets.get("DISCORD_WEBHOOK")  # old name still works as #1
+    if old and 1 not in hooks:
+        hooks[1] = old
+    return hooks
+
+
+WEBHOOKS = load_webhooks()
+print("Webhooks found:", sorted(WEBHOOKS))
 
 
 def fetch(url):
@@ -45,7 +67,7 @@ def parse(xml):
                 html_blob += html.unescape(c.text or "")
                 if summary is None:
                     summary = clean(c.text)
-            elif t in ("thumbnail", "content") and c.get("url"):
+            if t in ("thumbnail", "content") and c.get("url"):
                 image = image or c.get("url")
             elif t == "enclosure" and "image" in (c.get("type") or ""):
                 image = image or c.get("url")
@@ -77,7 +99,31 @@ def dominant_color(url):
         return PURPLE
 
 
-def post(title, link, summary, image, source):
+def send(webhook, embed):
+    body = json.dumps({"username": "Feed Bot", "embeds": [embed]}).encode()
+    for _ in range(3):
+        req = urllib.request.Request(webhook, data=body, headers={
+            "Content-Type": "application/json", "User-Agent": UA})
+        try:
+            urllib.request.urlopen(req, timeout=30)
+            return True
+        except urllib.error.HTTPError as ex:
+            if ex.code == 429:
+                try:
+                    wait = float(json.loads(ex.read()).get("retry_after", 2))
+                except Exception:
+                    wait = 2
+                time.sleep(wait + 0.5)
+                continue
+            print("Discord error:", ex.code)
+            return False
+        except Exception as ex:
+            print("Discord failed:", ex)
+            return False
+    return False
+
+
+def post(title, link, summary, image, source, webhook):
     desc = (summary + "\n\n" if summary else "") + f"**[Read here]({link})**"
     embed = {
         "title": title[:256],
@@ -89,20 +135,7 @@ def post(title, link, summary, image, source):
     }
     if image:
         embed["image"] = {"url": image}
-    body = json.dumps({"username": "Feed Bot", "embeds": [embed]}).encode()
-    for _ in range(3):
-        req = urllib.request.Request(WEBHOOK, data=body, headers={
-            "Content-Type": "application/json", "User-Agent": UA})
-        try:
-            urllib.request.urlopen(req, timeout=30)
-            return True
-        except urllib.error.HTTPError as ex:
-            if ex.code == 429:
-                time.sleep(float(json.loads(ex.read()).get("retry_after", 2)) + 0.5)
-                continue
-            print("Discord error:", ex.code)
-            return False
-    return False
+    return send(webhook, embed)
 
 
 first_run = not os.path.exists(SEEN_FILE)
@@ -110,16 +143,22 @@ seen = [] if first_run else json.load(open(SEEN_FILE))
 seen_set = set(seen)
 
 if first_run:
-    post(
-        "Feed Bot is live 👀",
-        "https://github.com/leo-gold16/Feeds",
-        "Something's coming... new posts from your feeds will land here automatically.",
-        None,
-        "Teaser",
-    )
+    for hook in WEBHOOKS.values():
+        post(
+            "Feed Bot is live 👀",
+            "https://github.com/leo-gold16/Feeds",
+            "Something's coming... new posts from your feeds will land here automatically.",
+            None,
+            "Teaser",
+            hook,
+        )
 
 try:
-    for name, url in FEEDS.items():
+    for name, (url, num) in FEEDS.items():
+        hook = WEBHOOKS.get(num)
+        if not hook:
+            print(f"Skipped {name}: no secret DISCORD_WEBHOOK_{num}")
+            continue
         try:
             items = parse(fetch(url))
         except Exception as ex:
@@ -130,10 +169,12 @@ try:
             if link in seen_set:
                 continue
             if first_run or sent >= MAX_PER_FEED:
-                seen.append(link); seen_set.add(link)
+                seen.append(link)
+                seen_set.add(link)
                 continue
-            if post(title, link, summary, image, name):
-                seen.append(link); seen_set.add(link)
+            if post(title, link, summary, image, name, hook):
+                seen.append(link)
+                seen_set.add(link)
                 sent += 1
                 time.sleep(1)
 finally:
