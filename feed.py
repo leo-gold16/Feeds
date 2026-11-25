@@ -8,7 +8,7 @@ from urllib.parse import urlparse, urljoin, urlunparse, parse_qsl, urlencode
 
 # ===== EDIT HERE: "Feed name": ("feed URL", webhook number) =====
 FEEDS = {
-    "r/AnikageCommunity": ("https://www.reddit.com/r/AnikageCommunity/.rss", 1),
+    "r/AnikageCommunity": ("https://www.reddit.com/r/AnikageCommunity/s/Ggx3GZqDgR.rss", 1),
     "Anime News Network": ("https://www.animenewsnetwork.com/all/rss.xml?ann-edition=us", 2),
     "Otaku Down": ("https://otakudown.com/feed/", 3),
     "Otaku USA Magazine": ("https://otakuusamagazine.com/anime/feed/", 2),
