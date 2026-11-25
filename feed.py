@@ -2,8 +2,8 @@ import json, os, time, urllib.request
 import xml.etree.ElementTree as ET
 
 FEEDS = [
-    "https://www.reddit.com/r/python/.rss",
-    "https://hnrss.org/frontpage",
+    "https://www.reddit.com/r/AnikageCommunity/",
+    "https://www.animenewsnetwork.com/all/rss.xml?ann-edition=us",
 ]
 WEBHOOK = os.environ["DISCORD_WEBHOOK"]
 SEEN_FILE = "seen.json"
